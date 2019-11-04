@@ -15,9 +15,6 @@ module Zeitwerk
     # @return [#camelize]
     attr_accessor :inflector
 
-    # @return [#call, #debug, nil]
-    attr_accessor :logger
-
     # Absolute paths of the root directories. Stored in a hash to preserve
     # order, easily handle duplicates, and also be able to have a fast lookup,
     # needed for detecting nested paths.
@@ -116,20 +113,14 @@ module Zeitwerk
     # @return [Set<String>]
     attr_reader :eager_load_exclusions
 
-    # @private
-    # @return [Mutex]
-    attr_reader :mutex
-
-    # @private
-    # @return [Mutex]
-    attr_reader :mutex2
+    attr_accessor :vivify_mod_dir
+    attr_accessor :vivify_mod_class
 
     def initialize
       @initialized_at = Time.now
 
       @tag       = SecureRandom.hex(3)
       @inflector = Inflector.new
-      @logger    = self.class.default_logger
 
       @root_dirs             = {}
       @preloads              = []
@@ -140,14 +131,14 @@ module Zeitwerk
       @to_unload             = {}
       @lazy_subdirs          = {}
       @eager_load_exclusions = Set.new
-
-      # TODO: find a better name for these mutexes.
-      @mutex        = Mutex.new
-      @mutex2       = Mutex.new
+      
       @setup        = false
       @eager_loaded = false
 
       @reloading_enabled = false
+
+      @vivify_mod_dir = false
+      @module_paths
 
       Registry.register_loader(self)
     end
@@ -182,7 +173,8 @@ module Zeitwerk
         raise_if_conflicting_directory(abspath)
         root_dirs[abspath] = true
       else
-        raise Error, "the root directory #{abspath} does not exist"
+        warn_string = "Zeitwerk: the root path #{abspath} does not exist, not added"
+        `console.warn(warn_string)`
       end
     end
 
@@ -192,14 +184,12 @@ module Zeitwerk
     # @raise [Zeitwerk::Error]
     # @return [void]
     def enable_reloading
-      mutex.synchronize do
-        break if @reloading_enabled
+      return if @reloading_enabled
 
-        if @setup
-          raise Error, "cannot enable reloading after setup"
-        else
-          @reloading_enabled = true
-        end
+      if @setup
+        raise Error, "cannot enable reloading after setup"
+      else
+        @reloading_enabled = true
       end
     end
 
@@ -213,11 +203,9 @@ module Zeitwerk
     # @param paths [<String, Pathname, <String, Pathname>>]
     # @return [void]
     def preload(*paths)
-      mutex.synchronize do
-        expand_paths(paths).each do |abspath|
-          preloads << abspath
-          do_preload_abspath(abspath) if @setup
-        end
+      expand_paths(paths).each do |abspath|
+        preloads << abspath
+        do_preload_abspath(abspath) if @setup
       end
     end
 
@@ -227,24 +215,20 @@ module Zeitwerk
     # @return [void]
     def ignore(*glob_patterns)
       glob_patterns = expand_paths(glob_patterns)
-      mutex.synchronize do
-        ignored_glob_patterns.merge(glob_patterns)
-        ignored_paths.merge(expand_glob_patterns(glob_patterns))
-      end
+      ignored_glob_patterns.merge(glob_patterns)
+      ignored_paths.merge(expand_glob_patterns(glob_patterns))
     end
 
     # Sets autoloads in the root namespace and preloads files, if any.
     #
     # @return [void]
     def setup
-      mutex.synchronize do
-        break if @setup
+      return if @setup
 
-        actual_root_dirs.each { |root_dir| set_autoloads_in_dir(root_dir, Object) }
-        do_preload
+      actual_root_dirs.each { |root_dir| set_autoloads_in_dir(root_dir, Object) }
+      do_preload
 
-        @setup = true
-      end
+      @setup = true
     end
 
     # Removes loaded constants and configured autoloads.
@@ -257,57 +241,55 @@ module Zeitwerk
     # @private
     # @return [void]
     def unload
-      mutex.synchronize do
-        # We are going to keep track of the files that were required by our
-        # autoloads to later remove them from $LOADED_FEATURES, thus making them
-        # loadable by Kernel#require again.
-        #
-        # Directories are not stored in $LOADED_FEATURES, keeping track of files
-        # is enough.
-        unloaded_files = Set.new
+      # We are going to keep track of the files that were required by our
+      # autoloads to later remove them from $LOADED_FEATURES, thus making them
+      # loadable by Kernel#require again.
+      #
+      # Directories are not stored in $LOADED_FEATURES, keeping track of files
+      # is enough.
+      unloaded_files = Set.new
 
-        autoloads.each do |realpath, (parent, cname)|
-          if parent.autoload?(cname)
-            unload_autoload(parent, cname)
-          else
-            # Could happen if loaded with require_relative. That is unsupported,
-            # and the constant path would escape unloadable_cpath? This is just
-            # defensive code to clean things up as much as we are able to.
-            unload_cref(parent, cname)   if cdef?(parent, cname)
-            unloaded_files.add(realpath) if ruby?(realpath)
-          end
-        end
-
-        to_unload.each_value do |(realpath, (parent, cname))|
+      autoloads.each do |realpath, (parent, cname)|
+        if parent.autoload?(cname)
+          unload_autoload(parent, cname)
+        else
+          # Could happen if loaded with require_relative. That is unsupported,
+          # and the constant path would escape unloadable_cpath? This is just
+          # defensive code to clean things up as much as we are able to.
           unload_cref(parent, cname)   if cdef?(parent, cname)
           unloaded_files.add(realpath) if ruby?(realpath)
         end
-
-        unless unloaded_files.empty?
-          # Bootsnap decorates Kernel#require to speed it up using a cache and
-          # this optimization does not check if $LOADED_FEATURES has the file.
-          #
-          # To make it aware of changes, the gem defines singleton methods in
-          # $LOADED_FEATURES:
-          #
-          #   https://github.com/Shopify/bootsnap/blob/master/lib/bootsnap/load_path_cache/core_ext/loaded_features.rb
-          #
-          # Rails applications may depend on bootsnap, so for unloading to work
-          # in that setting it is preferable that we restrict our API choice to
-          # one of those methods.
-          $LOADED_FEATURES.reject! { |file| unloaded_files.member?(file) }
-        end
-
-        autoloads.clear
-        autoloaded_dirs.clear
-        to_unload.clear
-        lazy_subdirs.clear
-
-        Registry.on_unload(self)
-        ExplicitNamespace.unregister(self)
-
-        @setup = false
       end
+
+      to_unload.each_value do |(realpath, (parent, cname))|
+        unload_cref(parent, cname)   if cdef?(parent, cname)
+        unloaded_files.add(realpath) if ruby?(realpath)
+      end
+
+      unless unloaded_files.empty?
+        # Bootsnap decorates Kernel#require to speed it up using a cache and
+        # this optimization does not check if $LOADED_FEATURES has the file.
+        #
+        # To make it aware of changes, the gem defines singleton methods in
+        # $LOADED_FEATURES:
+        #
+        #   https://github.com/Shopify/bootsnap/blob/master/lib/bootsnap/load_path_cache/core_ext/loaded_features.rb
+        #
+        # Rails applications may depend on bootsnap, so for unloading to work
+        # in that setting it is preferable that we restrict our API choice to
+        # one of those methods.
+        $LOADED_FEATURES.reject! { |file| unloaded_files.member?(file) }
+      end
+
+      autoloads.clear
+      autoloaded_dirs.clear
+      to_unload.clear
+      lazy_subdirs.clear
+
+      Registry.on_unload(self)
+      ExplicitNamespace.unregister(self)
+
+      @setup = false
     end
 
     # Unloads all loaded code, and calls setup again so that the loader is able
@@ -335,35 +317,33 @@ module Zeitwerk
     #
     # @return [void]
     def eager_load
-      mutex.synchronize do
-        break if @eager_loaded
+      return if @eager_loaded
 
-        queue = actual_root_dirs.reject { |dir| eager_load_exclusions.member?(dir) }
-        queue.map! { |dir| [Object, dir] }
-        while to_eager_load = queue.shift
-          namespace, dir = to_eager_load
+      queue = actual_root_dirs.reject { |dir| eager_load_exclusions.member?(dir) }
+      queue.map! { |dir| [Object, dir] }
+      while to_eager_load = queue.shift
+        namespace, dir = to_eager_load
 
-          ls(dir) do |basename, abspath|
-            next if eager_load_exclusions.member?(abspath)
+        ls(dir) do |basename, abspath|
+          next if eager_load_exclusions.member?(abspath)
 
-            if ruby?(abspath)
-              if cref = autoloads[File.realpath(abspath)]
-                cref[0].const_get(cref[1], false)
-              end
-            elsif dir?(abspath) && !root_dirs.key?(abspath)
-              cname = inflector.camelize(basename, abspath)
-              queue << [namespace.const_get(cname, false), abspath]
+          if ruby?(abspath)
+            if cref = autoloads[File.realpath(abspath)]
+              cref[0].const_get(cref[1], false)
             end
+          elsif dir?(abspath) && !root_dirs.key?(abspath)
+            cname = inflector.camelize(basename, abspath)
+            queue << [namespace.const_get(cname, false), abspath]
           end
         end
-
-        autoloaded_dirs.each do |autoloaded_dir|
-          Registry.unregister_autoload(autoloaded_dir)
-        end
-        autoloaded_dirs.clear
-
-        @eager_loaded = true
       end
+
+      autoloaded_dirs.each do |autoloaded_dir|
+        Registry.unregister_autoload(autoloaded_dir)
+      end
+      autoloaded_dirs.clear
+
+      @eager_loaded = true
     end
 
     # Let eager load ignore the given files or directories. The constants
@@ -372,7 +352,7 @@ module Zeitwerk
     # @param paths [<String, Pathname, <String, Pathname>>]
     # @return [void]
     def do_not_eager_load(*paths)
-      mutex.synchronize { eager_load_exclusions.merge(expand_paths(paths)) }
+      eager_load_exclusions.merge(expand_paths(paths))
     end
 
     # Says if the given constant path would be unloaded on reload. This
@@ -390,13 +370,6 @@ module Zeitwerk
     # @return [<String>]
     def unloadable_cpaths
       to_unload.keys.freeze
-    end
-
-    # Logs to `$stdout`, handy shortcut for debugging.
-    #
-    # @return [void]
-    def log!
-      @logger = ->(msg) { puts msg }
     end
 
     # @private
@@ -418,30 +391,6 @@ module Zeitwerk
     # --- Class methods ---------------------------------------------------------------------------
 
     class << self
-      # @return [#call, #debug, nil]
-      attr_accessor :default_logger
-
-      # @private
-      # @return [Mutex]
-      attr_accessor :mutex
-
-      # This is a shortcut for
-      #
-      #   require "zeitwerk"
-      #   loader = Zeitwerk::Loader.new
-      #   loader.tag = File.basename(__FILE__, ".rb")
-      #   loader.inflector = Zeitwerk::GemInflector.new
-      #   loader.push_dir(__dir__)
-      #
-      # except that this method returns the same object in subsequent calls from
-      # the same file, in the unlikely case the gem wants to be able to reload.
-      #
-      # @return [Zeitwerk::Loader]
-      def for_gem
-        called_from = caller_locations(1, 1).first.path
-        Registry.loader_for_gem(called_from)
-      end
-
       # Broadcasts `eager_load` to all loaders.
       #
       # @return [void]
@@ -458,25 +407,14 @@ module Zeitwerk
       end
     end
 
-    self.mutex = Mutex.new
-
-    private # -------------------------------------------------------------------------------------
-
-    # @return [<String>]
-    def actual_root_dirs
-      root_dirs.keys.delete_if do |root_dir|
-        !dir?(root_dir) || ignored_paths.member?(root_dir)
-      end
-    end
-
     # @param dir [String]
     # @param parent [Module]
     # @return [void]
     def set_autoloads_in_dir(dir, parent)
       ls(dir) do |basename, abspath|
         begin
-          if ruby?(basename)
-            basename.slice!(-3, 3)
+          if ruby?(abspath)
+            # basename = basename.slice(-3, 3)
             cname = inflector.camelize(basename, abspath).to_sym
             autoload_file(parent, cname, abspath)
           elsif dir?(abspath)
@@ -507,6 +445,15 @@ module Zeitwerk
               * Modify the inflector to handle this case.
           MESSAGE
         end
+      end
+    end
+
+    private # -------------------------------------------------------------------------------------
+
+    # @return [<String>]
+    def actual_root_dirs
+      root_dirs.keys.delete_if do |root_dir|
+        !dir?(root_dir) || ignored_paths.member?(root_dir)
       end
     end
 
@@ -541,7 +488,7 @@ module Zeitwerk
       if autoload_path = autoload_for?(parent, cname)
         # First autoload for a Ruby file wins, just ignore subsequent ones.
         if ruby?(autoload_path)
-          log("file #{file} is ignored because #{autoload_path} has precedence") if logger
+          # "file #{file} is ignored because #{autoload_path} has precedence"
         else
           promote_namespace_from_implicit_to_explicit(
             dir:    autoload_path,
@@ -551,7 +498,7 @@ module Zeitwerk
           )
         end
       elsif cdef?(parent, cname)
-        log("file #{file} is ignored because #{cpath(parent, cname)} is already defined") if logger
+        # "file #{file} is ignored because #{cpath(parent, cname)} is already defined"
       else
         set_autoload(parent, cname, file)
       end
@@ -580,13 +527,6 @@ module Zeitwerk
       # be able to do a lookup later in Kernel#require for manual require calls.
       realpath = File.realpath(abspath)
       parent.autoload(cname, realpath)
-      if logger
-        if ruby?(realpath)
-          log("autoload set for #{cpath(parent, cname)}, to be loaded from #{realpath}")
-        else
-          log("autoload set for #{cpath(parent, cname)}, to be autovivified from #{realpath}")
-        end
-      end
 
       autoloads[realpath] = [parent, cname]
       Registry.register_autoload(self, realpath)
@@ -664,7 +604,6 @@ module Zeitwerk
     # @param file [String]
     # @return [Boolean]
     def do_preload_file(file)
-      log("preloading #{file}") if logger
       require file
     end
 
@@ -679,23 +618,61 @@ module Zeitwerk
     # @yieldparam path [String, String]
     # @return [void]
     def ls(dir)
-      Dir.foreach(dir) do |basename|
-        next if basename.start_with?(".")
-        abspath = File.join(dir, basename)
-        yield basename, abspath unless ignored_paths.member?(abspath)
+      # `console.log("dir:", dir)`
+      outer_ls = false
+      # cache the Opal.modules keys array for subsequent ls calls during setup
+      if !@module_paths
+        @module_paths = `Object.keys(Opal.modules)`
+        outer_ls = true
+      end
+      visited_abspaths = `{}`
+      dir_first_char = dir[0]
+      path_start = dir.size + 1
+      path_parts = `[]`
+      basename = `''`
+      @module_paths.each do |abspath|
+        %x{
+          if (abspath[0] === dir_first_char) {
+            if (!abspath.startsWith(dir)) { #{next} }
+            path_parts = abspath.slice(path_start).split('/');
+            basename = path_parts[0];
+            abspath = dir + '/' + basename;
+            if (visited_abspaths.hasOwnProperty(abspath)) { #{next} }
+            visited_abspaths[abspath] = true;
+            // console.log("basename:", basename, "abspath:", abspath);
+            #{yield basename, abspath unless ignored_paths.member?(abspath)}
+          }
+        }
+      end
+      # remove cache, because Opal.modules may change after setup
+      if outer_ls
+        @module_paths = nil
       end
     end
 
     # @param path [String]
     # @return [Boolean]
-    def ruby?(path)
-      path.end_with?(".rb")
+    def ruby?(abspath)
+      `Opal.modules.hasOwnProperty(abspath)`
     end
 
     # @param path [String]
     # @return [Boolean]
     def dir?(path)
-      File.directory?(path)
+      dir_path = path + '/'
+      module_paths = if @module_paths # possibly set by ls
+                       @module_paths
+                     else
+                       `Object.keys(Opal.modules)`
+                     end
+      path_first = `path[0]`
+      module_paths.each do |m_path|
+        %x{
+          if (m_path[0] !== path_first) { #{ next } }
+          if (m_path.startsWith(dir_path)) { #{return true} }
+        }
+      end
+      return false
     end
 
     # @param paths [<String, Pathname, <String, Pathname>>]
@@ -717,13 +694,6 @@ module Zeitwerk
       ignored_paths.replace(expand_glob_patterns(ignored_glob_patterns))
     end
 
-    # @param message [String]
-    # @return [void]
-    def log(message)
-      method_name = logger.respond_to?(:debug) ? :debug : :call
-      logger.send(method_name, "Zeitwerk@#{tag}: #{message}")
-    end
-
     def cdef?(parent, cname)
       parent.const_defined?(cname, false)
     end
@@ -733,15 +703,13 @@ module Zeitwerk
     end
 
     def raise_if_conflicting_directory(dir)
-      self.class.mutex.synchronize do
-        Registry.loaders.each do |loader|
-          if loader != self && loader.manages?(dir)
-            require "pp"
-            raise Error,
-              "loader\n\n#{pretty_inspect}\n\nwants to manage directory #{dir}," \
-              " which is already managed by\n\n#{loader.pretty_inspect}\n"
-            EOS
-          end
+      Registry.loaders.each do |loader|
+        if loader != self && loader.manages?(dir)
+          require "pp"
+          raise Error,
+            "loader\n\n#{pretty_inspect}\n\nwants to manage directory #{dir}," \
+            " which is already managed by\n\n#{loader.pretty_inspect}\n"
+          EOS
         end
       end
     end
@@ -751,7 +719,6 @@ module Zeitwerk
     # @return [void]
     def unload_autoload(parent, cname)
       parent.send(:remove_const, cname)
-      log("autoload for #{cpath(parent, cname)} removed") if logger
     end
 
     # @param parent [Module]
@@ -759,7 +726,6 @@ module Zeitwerk
     # @return [void]
     def unload_cref(parent, cname)
       parent.send(:remove_const, cname)
-      log("#{cpath(parent, cname)} unloaded") if logger
     end
   end
 end

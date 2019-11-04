@@ -18,10 +18,6 @@ module Zeitwerk
       attr_reader :cpaths
 
       # @private
-      # @return [Mutex]
-      attr_reader :mutex
-
-      # @private
       # @return [TracePoint]
       attr_reader :tracer
 
@@ -33,12 +29,10 @@ module Zeitwerk
       # @param loader [Zeitwerk::Loader]
       # @return [void]
       def register(cpath, loader)
-        mutex.synchronize do
-          cpaths[cpath] = loader
-          # We check enabled? because, looking at the C source code, enabling an
-          # enabled tracer does not seem to be a simple no-op.
-          tracer.enable unless tracer.enabled?
-        end
+        cpaths[cpath] = loader
+        # We check enabled? because, looking at the C source code, enabling an
+        # enabled tracer does not seem to be a simple no-op.
+        tracer.enable unless tracer.enabled?
       end
 
       # @private
@@ -50,9 +44,7 @@ module Zeitwerk
       end
 
       def disable_tracer_if_unneeded
-        mutex.synchronize do
-          tracer.disable if cpaths.empty?
-        end
+        tracer.disable if cpaths.empty?
       end
 
       def tracepoint_class_callback(event)
@@ -71,7 +63,6 @@ module Zeitwerk
     end
 
     @cpaths = {}
-    @mutex  = Mutex.new
 
     # We go through a method instead of defining a block mainly to have a better
     # label when profiling.

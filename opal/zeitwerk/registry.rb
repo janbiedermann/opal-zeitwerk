@@ -10,13 +10,6 @@ module Zeitwerk
       # @return [<Zeitwerk::Loader>]
       attr_reader :loaders
 
-      # Registers loaders created with `for_gem` to make the method idempotent
-      # in case of reload.
-      #
-      # @private
-      # @return [{String => Zeitwerk::Loader}]
-      attr_reader :loaders_managing_gems
-
       # Maps real paths to the loaders responsible for them.
       #
       # This information is used by our decorated `Kernel#require` to be able to
@@ -74,22 +67,6 @@ module Zeitwerk
         loaders << loader
       end
 
-      # This method returns always a loader, the same instance for the same root
-      # file. That is how Zeitwerk::Loader.for_gem is idempotent.
-      #
-      # @private
-      # @param root_file [String]
-      # @return [Zeitwerk::Loader]
-      def loader_for_gem(root_file)
-        loaders_managing_gems[root_file] ||= begin
-          Loader.new.tap do |loader|
-            loader.tag = File.basename(root_file, ".rb")
-            loader.inflector = GemInflector.new(root_file)
-            loader.push_dir(File.dirname(root_file))
-          end
-        end
-      end
-
       # @private
       # @param loader [Zeitwerk::Loader]
       # @param realpath [String]
@@ -140,7 +117,6 @@ module Zeitwerk
     end
 
     @loaders               = []
-    @loaders_managing_gems = {}
     @autoloads             = {}
     @inceptions            = {}
   end

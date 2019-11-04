@@ -12,12 +12,24 @@ It is very important that all the source code uses systematically the following 
 
 ### Variables for paths
 
+In the Browser a path is basically a key of Opal.modules.
+A directory is a partial path.
+Example for path: 'components/my_app/my_component'
+Example for directories, eg. for above path:
+- 'components'
+- 'components/my_app'
+
+
+Directories are not registered explicitly in Opal.modules, they must be inferred from the paths available in Opal.modules.
+
 You should pick always the most specific option:
 
 * `file`: Absolute path of a file.
 * `dir`: Absolute path of a directory.
 * `abspath`: Absolute path of a file or directory.
 * `realpath`: Absolute real path of a file or directory.
+
+Within Opal.modules abspath and realpath are the same.
 
 Note that Zeitwerk does not deal with file or directory objects, only with paths. For brevity, we exploit this fact to adopt the convention `file`/`dir` instead of `filename`/`dirname` or somesuch.
 
@@ -60,17 +72,11 @@ We sacrifice there a bit of precision in order to communicate better. Some Ruby 
 
 ## Performance
 
-Zeitwerk is infraestructure, should have minimal cost both in speed and memory usage.
+Zeitwerk is infrastructure, should have minimal cost both in speed and memory usage.
 
 Be extra careful, allocate as less as possible, store as less as possible. Use always absolute file names for `autoload` and `require`.
 
-Log always using this pattern:
-
-```ruby
-log(message) if logger
-```
-
-to avoid unncessary calls, and unnecessary computed values in the message.
+to avoid unnecessary calls, and unnecessary computed values in the message.
 
 Some projects may have hundreds of root directories and hundreds of thousands of files, please remember that.
 

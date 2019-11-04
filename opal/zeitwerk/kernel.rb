@@ -12,7 +12,7 @@ module Kernel
   # @return [Boolean]
   def require(path)
     if loader = Zeitwerk::Registry.loader_for(path)
-      if path.end_with?(".rb")
+      if `Opal.modules.hasOwnProperty(path)`
         zeitwerk_original_require(path).tap do |required|
           loader.on_file_autoloaded(path) if required
         end

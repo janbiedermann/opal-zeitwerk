@@ -14,8 +14,9 @@ Gem::Specification.new do |spec|
   spec.email    = 'jan@kursator.de'
   spec.license  = "MIT"
   spec.homepage = "https://github.com/isomorfeus/opal-zeitwerk"
-  spec.files    = Dir["README.md", "MIT-LICENSE", "lib/**/*.rb" "opal/**/*.rb"]
+  spec.files    = Dir["README.md", "MIT-LICENSE", "lib/**/*.rb", "opal/**/*.rb"]
   spec.version  = Opal::Zeitwerk::VERSION
-
+  spec.require_paths = ['lib']
   spec.required_ruby_version = ">= 2.4.4"
+  spec.add_dependency 'opal', '>= 1.0.0'
 end

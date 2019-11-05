@@ -169,6 +169,7 @@ should define `Geolocatable`, not `Concerns::Geolocatable`.
 
 Add to the Gemfile:
 ```
+gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1' # required
 gem 'opal-zeitwerk', '~> 0.0.1'
 ```
 

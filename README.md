@@ -179,6 +179,16 @@ require 'zeitwerk'
 
 <a id="markdown-setup" name="setup"></a>
 ### Setup
+File must be included in the compiled asset by:
+```
+require_tree 'some_dir', :autoload
+```
+And added to the loader by:
+```
+loader.push_dir('some_dir')
+```
+The loader here requires the part of the path as it would appear in Opal.modules.
+If `require_tree` is called from a sub directory, the path from the root as it would appear in Opal.modules has to be prepended for push_dir.
 
 Loaders are ready to load code right after calling `setup` on them:
 

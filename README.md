@@ -179,7 +179,7 @@ require 'zeitwerk'
 
 <a id="markdown-setup" name="setup"></a>
 ### Setup
-File must be included in the compiled asset by:
+Files must be included in the compiled asset by:
 ```
 require_tree 'some_dir', :autoload
 ```

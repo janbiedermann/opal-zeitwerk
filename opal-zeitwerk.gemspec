@@ -17,6 +17,17 @@ Gem::Specification.new do |spec|
   spec.files    = Dir["README.md", "MIT-LICENSE", "lib/**/*.rb", "opal/**/*.rb"]
   spec.version  = Opal::Zeitwerk::VERSION
   spec.require_paths = ['lib']
+
+  spec.post_install_message = <<~TEXT
+
+  opal-zeitwerk #{Opal::Zeitwerk::VERSION}:
+    
+    opal-zeitwerk currently requires the es6_modules_1_1 branch of opal, for the Gemfile:
+
+    gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1'
+
+  TEXT
+
   spec.required_ruby_version = ">= 2.4.4"
   spec.add_dependency 'opal', '>= 1.0.0'
 end

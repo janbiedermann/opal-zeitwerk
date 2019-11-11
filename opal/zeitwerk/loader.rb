@@ -131,7 +131,7 @@ module Zeitwerk
       @to_unload             = {}
       @lazy_subdirs          = {}
       @eager_load_exclusions = Set.new
-      
+
       @setup        = false
       @eager_loaded = false
 
@@ -621,10 +621,12 @@ module Zeitwerk
       # `console.log("dir:", dir)`
       outer_ls = false
       # cache the Opal.modules keys array for subsequent ls calls during setup
-      if !@module_paths
-        @module_paths = `Object.keys(Opal.modules)`
-        outer_ls = true
-      end
+      %x{
+        if (#@module_paths === nil) {
+          #@module_paths = Object.keys(Opal.modules);
+          outer_ls = true;
+        }
+      }
       visited_abspaths = `{}`
       dir_first_char = dir[0]
       path_start = dir.size + 1
@@ -645,9 +647,9 @@ module Zeitwerk
         }
       end
       # remove cache, because Opal.modules may change after setup
-      if outer_ls
-        @module_paths = nil
-      end
+      %x{
+        if (outer_ls) { #@module_paths = nil }
+      }
     end
 
     # @param path [String]

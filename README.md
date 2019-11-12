@@ -167,9 +167,13 @@ should define `Geolocatable`, not `Concerns::Geolocatable`.
 <a id="markdown-usage" name="usage"></a>
 ## Usage
 
+Currently autoloading requires the es6_modules_1_1 branch along with the Opal es6_modules compiler options enabled.
+This option is enabled by default with using [opal-webpack-loader](https://github.com/isomorfeus/opal-webpack-loader) to bundle opal code. 
+
 Add to the Gemfile:
 ```
 gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1' # required
+gem 'opal-webpack-loader', '~> 0.9.7' # required
 gem 'opal-zeitwerk', '~> 0.0.1'
 ```
 

@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module Zeitwerk
   class Inflector
     # Very basic snake case -> camel case conversion.

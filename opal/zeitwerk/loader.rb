@@ -523,7 +523,7 @@ module Zeitwerk
       # $LOADED_FEATURES stores real paths since Ruby 2.4.4. We set and save the
       # real path to be able to delete it from $LOADED_FEATURES on unload, and to
       # be able to do a lookup later in Kernel#require for manual require calls.
-      realpath = File.realpath(abspath)
+      realpath = `Opal.modules.hasOwnProperty(abspath)` ? abspath : File.realpath(abspath)
       parent.autoload(cname, realpath)
 
       autoloads[realpath] = [parent, cname]

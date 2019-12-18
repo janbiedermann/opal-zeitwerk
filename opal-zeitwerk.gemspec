@@ -14,10 +14,10 @@ Gem::Specification.new do |spec|
   spec.email    = 'jan@kursator.de'
   spec.license  = "MIT"
   spec.homepage = "https://github.com/isomorfeus/opal-zeitwerk"
+  spec.metadata      = { "github_repo" => "ssh://github.com/isomorfeus/gems" }
   spec.files    = Dir["README.md", "MIT-LICENSE", "lib/**/*.rb", "opal/**/*.rb"]
   spec.version  = Opal::Zeitwerk::VERSION
   spec.require_paths = ['lib']
-
   spec.post_install_message = <<~TEXT
 
   opal-zeitwerk #{Opal::Zeitwerk::VERSION}:

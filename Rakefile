@@ -1,3 +1,5 @@
+require_relative 'lib/lib/opal/zeitwerk/version'
+
 # require 'rake/testtask'
 #
 # task :default => :test
@@ -6,3 +8,22 @@
 #   t.test_files = Dir.glob('test/lib/**/test_*.rb')
 #   t.libs << "test"
 # end
+#
+
+task :push_ruby_packages do
+  Rake::Task['push_ruby_packages_to_rubygems'].invoke
+  Rake::Task['push_ruby_packages_to_github'].invoke
+  Rake::Task['push_ruby_packages_to_isomorfeus'].invoke
+end
+
+task :push_ruby_packages_to_rubygems do
+  system("gem push opal-zeitwerk-#{Opal::Zeitwerk::VERSION}.gem")
+end
+
+task :push_ruby_packages_to_github do
+  system("gem push --key github --host https://rubygems.pkg.github.com/isomorfeus opal-zeitwerk-#{Opal::Zeitwerk::VERSION}.gem")
+end
+
+task :push_ruby_packages_to_isomorfeus do
+  system("gem inabox opal-zeitwerk-#{Opal::Zeitwerk::VERSION}.gem --host http://localhost:5555/")
+end

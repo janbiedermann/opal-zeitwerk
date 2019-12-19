@@ -1,4 +1,4 @@
-require_relative 'lib/lib/opal/zeitwerk/version'
+require_relative 'lib/opal/zeitwerk/version'
 
 # require 'rake/testtask'
 #

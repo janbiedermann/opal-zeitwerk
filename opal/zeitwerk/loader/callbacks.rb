@@ -13,7 +13,7 @@ module Zeitwerk::Loader::Callbacks
 
     # "constant #{cpath(*cref)} loaded from file #{file}" if cdef?(*cref)
     if !cdef?(*cref)
-      raise Zeitwerk::NameError, "expected file #{file} to define constant #{cpath(*cref)}, but didn't"
+      raise Zeitwerk::NameError.new("expected file #{file} to define constant #{cpath(*cref)}, but didn't", cref.last)
     end
   end
 
@@ -25,11 +25,8 @@ module Zeitwerk::Loader::Callbacks
   # @return [void]
   def on_dir_autoloaded(dir)
     if cref = autoloads.delete(dir)
-      autovivified_module = if vivify_mod_dir && dir.start_with?(vivify_mod_dir)
-                              cref[0].const_set(cref[1], vivify_mod_class.new)
-                            else
-                              cref[0].const_set(cref[1], Module.new)
-                            end
+      autovivified_module = cref[0].const_set(cref[1], Module.new)
+
       # "module #{autovivified_module.name} autovivified from directory #{dir}"
 
       to_unload[autovivified_module.name] = [dir, cref] if reloading_enabled?

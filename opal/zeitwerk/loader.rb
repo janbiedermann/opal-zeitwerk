@@ -288,6 +288,7 @@ module Zeitwerk
       ExplicitNamespace.unregister(self)
 
       @setup = false
+      @eager_loaded = false
     end
 
     # Unloads all loaded code, and calls setup again so that the loader is able
@@ -430,7 +431,7 @@ module Zeitwerk
         rescue ::NameError => error
           path_type = ruby?(abspath) ? "file" : "directory"
 
-          raise NameError, <<~MESSAGE
+          raise NameError(<<~MESSAGE, error.name)
             #{error.message} inferred by #{inflector.class} from #{path_type}
 
               #{abspath}

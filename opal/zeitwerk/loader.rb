@@ -153,7 +153,7 @@ module Zeitwerk
     #
     # @return [<String>]
     def dirs
-      root_dirs.keys.freeze
+      root_dirs.keys
     end
 
     # Pushes `path` to the list of root directories.
@@ -368,7 +368,7 @@ module Zeitwerk
     #
     # @return [<String>]
     def unloadable_cpaths
-      to_unload.keys.freeze
+      to_unload.keys
     end
 
     # @private
@@ -402,7 +402,7 @@ module Zeitwerk
       #
       # @return [<String>]
       def all_dirs
-        Registry.loaders.flat_map(&:dirs).freeze
+        Registry.loaders.flat_map(&:dirs)
       end
     end
 
@@ -562,14 +562,8 @@ module Zeitwerk
     # @param parent [Module]
     # @param cname [Symbol]
     # @return [String, nil]
-    if method(:autoload?).arity == 1
-      def strict_autoload_path(parent, cname)
-        parent.autoload?(cname) if cdef?(parent, cname)
-      end
-    else
-      def strict_autoload_path(parent, cname)
-        parent.autoload?(cname, false)
-      end
+    def strict_autoload_path(parent, cname)
+      parent.autoload?(cname, false)
     end
 
     # This method is called this way because I prefer `preload` to be the method

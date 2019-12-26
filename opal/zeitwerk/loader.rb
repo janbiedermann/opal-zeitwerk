@@ -430,8 +430,7 @@ module Zeitwerk
           end
         rescue ::NameError => error
           path_type = ruby?(abspath) ? "file" : "directory"
-
-          raise NameError(<<~MESSAGE, error.name)
+          message = <<~MESSAGE
             #{error.message} inferred by #{inflector.class} from #{path_type}
 
               #{abspath}
@@ -443,6 +442,7 @@ module Zeitwerk
               * Rename the #{path_type} to comply with the naming conventions.
               * Modify the inflector to handle this case.
           MESSAGE
+          raise NameError.new(message, error.name)
         end
       end
     end
@@ -624,7 +624,7 @@ module Zeitwerk
       dir_first_char = dir[0]
       path_start = dir.size + 1
       path_parts = `[]`
-      basename = `''`
+      basename = ''
       @module_paths.each do |abspath|
         %x{
           if (abspath[0] === dir_first_char) {

@@ -500,6 +500,17 @@ module Zeitwerk
         # "file #{file} is ignored because #{cpath(parent, cname)} is already defined"
       else
         set_autoload(parent, cname, file)
+        if autoload_path = autoload_for?(parent, cname)
+          if dir?(autoload_path)
+            promote_namespace_from_implicit_to_explicit(
+              dir:    autoload_path,
+              file:   file,
+              parent: parent,
+              cname:  cname
+            )
+            (lazy_subdirs[cpath(parent, cname)] ||= []) << autoload_path
+          end
+        end
       end
     end
 

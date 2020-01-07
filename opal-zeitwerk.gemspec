@@ -26,6 +26,8 @@ Gem::Specification.new do |spec|
 
     gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1'
 
+    Commit 04c59bcb6ec124d021d464d12a45e7dae892456f from 7.1.2020 or later.
+
   TEXT
 
   spec.required_ruby_version = ">= 2.4.4"

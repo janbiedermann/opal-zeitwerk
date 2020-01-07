@@ -51,12 +51,12 @@ module Zeitwerk
         # If the class is a singleton class, we won't do anything with it so we
         # can bail out immediately. This is several orders of magnitude faster
         # than accessing its name.
-        return if event.singleton_class?
+        return if event.self.singleton_class?
 
         # Note that it makes sense to compute the hash code unconditionally,
         # because the trace point is disabled if cpaths is empty.
-        if loader = cpaths.delete(real_mod_name(event))
-          loader.on_namespace_loaded(event)
+        if loader = cpaths.delete(real_mod_name(event.self))
+          loader.on_namespace_loaded(event.self)
           disable_tracer_if_unneeded
         end
       end

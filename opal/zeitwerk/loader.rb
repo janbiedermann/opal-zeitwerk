@@ -678,7 +678,7 @@ module Zeitwerk
           if (m_path.startsWith(dir_path)) { #{return true} }
         }
       end
-      return false
+      false
     end
 
     # @param paths [<String, Pathname, <String, Pathname>>]

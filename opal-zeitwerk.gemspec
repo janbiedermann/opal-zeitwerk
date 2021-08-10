@@ -22,14 +22,14 @@ Gem::Specification.new do |spec|
 
   opal-zeitwerk #{Opal::Zeitwerk::VERSION}:
     
-    opal-zeitwerk currently requires the es6_modules_1_1 branch of opal, for the Gemfile:
+    opal-zeitwerk currently requires the es6_modules_1_2 branch of opal, for the Gemfile:
 
-    gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1'
+    gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_2'
 
     Commit 04c59bcb6ec124d021d464d12a45e7dae892456f from 7.1.2020 or later.
 
   TEXT
 
   spec.required_ruby_version = ">= 2.4.4"
-  spec.add_dependency 'opal', '>= 1.0.0'
+  spec.add_dependency 'opal', '>= 1.2.0'
 end

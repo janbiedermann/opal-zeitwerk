@@ -12,7 +12,7 @@ require_relative 'lib/opal/zeitwerk/version'
 
 task :push_ruby_packages do
   Rake::Task['push_ruby_packages_to_rubygems'].invoke
-  Rake::Task['push_ruby_packages_to_github'].invok
+  Rake::Task['push_ruby_packages_to_github'].invoke
 end
 
 task :push_ruby_packages_to_rubygems do

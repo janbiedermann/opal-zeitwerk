@@ -711,10 +711,9 @@ module Zeitwerk
     def raise_if_conflicting_directory(dir)
       Registry.loaders.each do |loader|
         if loader != self && loader.manages?(dir)
-          require "pp"
           raise Error,
-            "loader\n\n#{pretty_inspect}\n\nwants to manage directory #{dir}," \
-            " which is already managed by\n\n#{loader.pretty_inspect}\n"
+            "loader\n\n#{self}\n\nwants to manage directory #{dir}," \
+            " which is already managed by\n\n#{loader}\n"
           EOS
         end
       end

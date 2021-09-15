@@ -167,12 +167,12 @@ should define `Geolocatable`, not `Concerns::Geolocatable`.
 <a id="markdown-usage" name="usage"></a>
 ## Usage
 
-Currently autoloading requires the es6_modules_1_1 branch along with the Opal es6_modules compiler options enabled.
+Currently autoloading requires the iso_for_master branch along with the Opal es6_modules compiler options enabled.
 This option is enabled by default with using [opal-webpack-loader](https://github.com/isomorfeus/opal-webpack-loader) to bundle opal code. 
 
 Add to the Gemfile:
 ```
-gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1' # required
+gem 'opal', github: 'janbiedermann/opal', branch: 'iso_for_master' # required
 gem 'opal-webpack-loader', '~> 0.9.7' # required
 gem 'opal-zeitwerk', '~> 0.0.1'
 ```
@@ -451,10 +451,10 @@ As a workaround, you can eager load. Zeitwerk tries hard to succeed or fail cons
 <a id="markdown-supported-opal-versions" name="supported-opal-versions"></a>
 ## Supported Opal versions
 
-Opal Zeitwerk currently works only with the [Opal es6_modules_1_1 PR#1976](https://github.com/opal/opal/pull/1976) of Opal.
+Opal Zeitwerk currently works only with the [Opal iso_for_master PR#1976](https://github.com/opal/opal/pull/1976) of Opal.
 For the Gemfile:
 ```
-gem 'opal', github: 'janbiedermann/opal', branch: 'es6_modules_1_1'
+gem 'opal', github: 'janbiedermann/opal', branch: 'iso_for_master'
 ```
 
 <a id="markdown-motivation" name="motivation"></a>

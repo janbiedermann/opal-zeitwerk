@@ -186,7 +186,7 @@ require 'zeitwerk'
 ### Setup
 Files must be included in the compiled asset by:
 ```
-require_tree 'some_dir', :autoload
+require_tree 'some_dir', autoload: true
 ```
 And added to the loader by:
 ```

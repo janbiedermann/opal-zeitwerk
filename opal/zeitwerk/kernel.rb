@@ -9,6 +9,7 @@ module Kernel
   # @param path [String]
   # @return [Boolean]
   def require(path)
+    path = `Opal.normalize(#{path})`
     if loader = Zeitwerk::Registry.loader_for(path)
       if `Opal.modules.hasOwnProperty(path)`
         zeitwerk_original_require(path).tap do |required|

@@ -51,7 +51,7 @@ Differences to Ruby Zeitwerk:
 - no logging (to keep asset size small and performance high)
 - no gem specific support: GemInflector, for_gem, etc.
 
-  These don't make so much sense, as Opal Zeitwerk works on the global Opal.modules registry in the Browser, not the filesystem. 
+  These don't make so much sense, as Opal Zeitwerk works on the global Opal.modules registry in the Browser, not the filesystem.
 - Zeitwerk::Loader.set_autoloads_in_dir is public, so it can be called from lazy loaded code, after updating Opal.modules.
 - There are no threads in javascript so thread support has been removed.
 - Tests don't run yet.
@@ -167,13 +167,9 @@ should define `Geolocatable`, not `Concerns::Geolocatable`.
 <a id="markdown-usage" name="usage"></a>
 ## Usage
 
-Currently autoloading requires the iso_for_master branch along with the Opal es6_modules compiler options enabled.
-This option is enabled by default with using [opal-webpack-loader](https://github.com/isomorfeus/opal-webpack-loader) to bundle opal code. 
-
 Add to the Gemfile:
 ```
-gem 'opal', github: 'janbiedermann/opal', branch: 'iso_for_master' # required
-gem 'opal-webpack-loader', '~> 0.9.7' # required
+gem 'opal', '>= 1.3.0'
 gem 'opal-zeitwerk', '~> 0.0.1'
 ```
 
@@ -451,10 +447,9 @@ As a workaround, you can eager load. Zeitwerk tries hard to succeed or fail cons
 <a id="markdown-supported-opal-versions" name="supported-opal-versions"></a>
 ## Supported Opal versions
 
-Opal Zeitwerk currently works only with the [Opal iso_for_master PR#1976](https://github.com/opal/opal/pull/1976) of Opal.
-For the Gemfile:
+Opal Zeitwerk currently works with Opal releases >= 1.3.0. For the Gemfile:
 ```
-gem 'opal', github: 'janbiedermann/opal', branch: 'iso_for_master'
+gem 'opal', '>= 1.3.0'
 ```
 
 <a id="markdown-motivation" name="motivation"></a>

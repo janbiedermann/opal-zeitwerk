@@ -1,14 +1,10 @@
 require_relative 'lib/opal/zeitwerk/version'
 
-# require 'rake/testtask'
-#
-# task :default => :test
-#
-# Rake::TestTask.new do |t|
-#   t.test_files = Dir.glob('test/lib/**/test_*.rb')
-#   t.libs << "test"
-# end
-#
+task :push do
+  system("git push github")
+  system("git push gitlab")
+  system("git push bitbucket")
+end
 
 task :push_ruby_packages do
   Rake::Task['push_ruby_packages_to_rubygems'].invoke

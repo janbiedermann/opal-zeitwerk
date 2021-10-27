@@ -7,8 +7,8 @@ task :push do
 end
 
 task :push_packages do
-  Rake::Task['push_ruby_packages_to_rubygems'].invoke
-  Rake::Task['push_ruby_packages_to_github'].invoke
+  Rake::Task['push_packages_to_rubygems'].invoke
+  Rake::Task['push_packages_to_github'].invoke
 end
 
 task :push_packages_to_rubygems do

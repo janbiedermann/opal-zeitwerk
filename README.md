@@ -169,8 +169,8 @@ should define `Geolocatable`, not `Concerns::Geolocatable`.
 
 Add to the Gemfile:
 ```
-gem 'opal', '~> 1.3.0'
-gem 'opal-zeitwerk', '~> 0.2.4'
+gem 'opal', '~> 1.4.0'
+gem 'opal-zeitwerk', '~> 0.3.0'
 ```
 
 And to your loader of opal code:
@@ -449,7 +449,7 @@ As a workaround, you can eager load. Zeitwerk tries hard to succeed or fail cons
 
 Opal Zeitwerk currently works with Opal releases >= 1.3.0. For the Gemfile:
 ```
-gem 'opal', '>= 1.3.0'
+gem 'opal', '>= 1.4.0'
 ```
 
 <a id="markdown-motivation" name="motivation"></a>

@@ -169,7 +169,7 @@ should define `Geolocatable`, not `Concerns::Geolocatable`.
 
 Add to the Gemfile:
 ```
-gem 'opal', '~> 1.4.0'
+gem 'opal', '~> 1.4.1'
 gem 'opal-zeitwerk', '~> 0.3.0'
 ```
 

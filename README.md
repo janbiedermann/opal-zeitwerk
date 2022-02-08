@@ -1,7 +1,7 @@
 # Opal Zeitwerk
 
 ## Community and Support
-At the [Isomorfeus Project](http://isomorfeus.com) - isomorphic full stack Ruby for the web.
+At the [Isomorfeus Project](https://isomorfeus.com) - isomorphic full stack Ruby for the web.
 
 ## TOC
 <!-- TOC -->

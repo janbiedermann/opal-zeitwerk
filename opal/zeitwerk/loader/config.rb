@@ -113,7 +113,8 @@ module Zeitwerk::Loader::Config
       raise_if_conflicting_directory(abspath)
       root_dirs[abspath] = namespace
     else
-      raise Zeitwerk::Error, "the root directory #{abspath} does not exist"
+      warn_string = "Zeitwerk: the root path #{abspath} does not exist, not added"
+      `console.warn(warn_string)`
     end
   end
 

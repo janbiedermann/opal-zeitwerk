@@ -438,10 +438,9 @@ module Zeitwerk
 
           root_dir = root_dir + "/"
           if dir.start_with?(root_dir) || root_dir.start_with?(dir)
-            require "pp" # Needed for pretty_inspect, even in Ruby 2.5.
             raise Error,
-              "loader\n\n#{pretty_inspect}\n\nwants to manage directory #{dir.chop}," \
-              " which is already managed by\n\n#{loader.pretty_inspect}\n"
+              "loader\n\n#{loader}\n\nwants to manage directory #{dir.chop}," \
+              " which is already managed by\n\n#{loader}\n"
             EOS
           end
         end

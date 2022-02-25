@@ -14,20 +14,22 @@ module Zeitwerk
       # the file system, to the loader responsible for them.
       #
       # @private
-      # @return [{String => Zeitwerk::Loader}]
+      # @sig Hash[String, Zeitwerk::Loader]
       attr_reader :cpaths
 
       # @private
-      # @return [TracePoint]
+      # @sig Mutex
+      attr_reader :mutex
+
+      # @private
+      # @sig TracePoint
       attr_reader :tracer
 
       # Asserts `cpath` corresponds to an explicit namespace for which `loader`
       # is responsible.
       #
       # @private
-      # @param cpath [String]
-      # @param loader [Zeitwerk::Loader]
-      # @return [void]
+      # @sig (String, Zeitwerk::Loader) -> void
       def register(cpath, loader)
         cpaths[cpath] = loader
         # We check enabled? because, looking at the C source code, enabling an
@@ -36,25 +38,34 @@ module Zeitwerk
       end
 
       # @private
-      # @param loader [Zeitwerk::Loader]
-      # @return [void]
-      def unregister(loader)
+      # @sig (Zeitwerk::Loader) -> void
+      def unregister_loader(loader)
         cpaths.delete_if { |_cpath, l| l == loader }
         disable_tracer_if_unneeded
       end
 
+      private
+
+      # @sig () -> void
       def disable_tracer_if_unneeded
         tracer.disable if cpaths.empty?
       end
 
+      # @sig (TracePoint) -> void
       def tracepoint_class_callback(event)
         # If the class is a singleton class, we won't do anything with it so we
         # can bail out immediately. This is several orders of magnitude faster
         # than accessing its name.
         return if event.self.singleton_class?
 
-        # Note that it makes sense to compute the hash code unconditionally,
-        # because the trace point is disabled if cpaths is empty.
+        # It might be tempting to return if name.nil?, to avoid the computation
+        # of a hash code and delete call. But Ruby does not trigger the :class
+        # event on Class.new or Module.new, so that would incur in an extra call
+        # for nothing.
+        #
+        # On the other hand, if we were called, cpaths is not empty. Otherwise
+        # the tracer is disabled. So we do need to go ahead with the hash code
+        # computation and delete call.
         if loader = cpaths.delete(real_mod_name(event.self))
           loader.on_namespace_loaded(event.self)
           disable_tracer_if_unneeded

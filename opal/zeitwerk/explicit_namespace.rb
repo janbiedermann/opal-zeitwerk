@@ -18,10 +18,6 @@ module Zeitwerk
       attr_reader :cpaths
 
       # @private
-      # @sig Mutex
-      attr_reader :mutex
-
-      # @private
       # @sig TracePoint
       attr_reader :tracer
 

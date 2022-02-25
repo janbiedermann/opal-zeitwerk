@@ -280,8 +280,7 @@ module Zeitwerk
       # the same file, in the unlikely case the gem wants to be able to reload.
       #
       # @sig () -> Zeitwerk::Loader
-      def for_gem
-        called_from = __FILE__
+      def for_gem(called_from)
         Registry.loader_for_gem(called_from)
       end
 

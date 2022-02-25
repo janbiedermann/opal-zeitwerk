@@ -74,18 +74,6 @@ class TestRequireInteraction < LoaderTest
     end
   end
 
-  test "a required top-level file is still detected as unloadable (require_relative)" do
-    files = [["user.rb", "class User; end"]]
-    with_setup(files) do
-      assert_equal true, require_relative("../../tmp/user")
-      loader.unload
-      assert !Object.const_defined?(:User, false)
-
-      loader.setup
-      assert User
-    end
-  end
-
   test "require autovivifies as needed" do
     files = [
       ["app/models/admin/user.rb", "class Admin::User; end"],
@@ -100,6 +88,27 @@ class TestRequireInteraction < LoaderTest
 
       loader.unload
       assert !Object.const_defined?(:Admin)
+    end
+  end
+
+  test "files deep down the current visited level are recognized as managed (implicit)" do
+    files = [["foo/bar/baz/zoo/woo.rb", "Foo::Bar::Baz::Zoo::Woo = 1"]]
+    with_setup(files, load_path: ".") do
+      assert_required "foo/bar/baz/zoo/woo"
+      assert loader.unloadable_cpath?("Foo::Bar::Baz::Zoo::Woo")
+    end
+  end
+
+  test "files deep down the current visited level are recognized as managed (explicit)" do
+    files = [
+      ["foo/bar/baz/zoo.rb", "module Foo::Bar::Baz::Zoo; include Wadus; end"],
+      ["foo/bar/baz/zoo/wadus.rb", "module Foo::Bar::Baz::Zoo::Wadus; end"],
+      ["foo/bar/baz/zoo/woo.rb", "Foo::Bar::Baz::Zoo::Woo = 1"]
+    ]
+    with_setup(files, load_path: ".") do
+      assert_required "foo/bar/baz/zoo/woo"
+      assert loader.unloadable_cpath?("Foo::Bar::Baz::Zoo::Wadus")
+      assert loader.unloadable_cpath?("Foo::Bar::Baz::Zoo::Woo")
     end
   end
 
@@ -196,39 +205,6 @@ class TestRequireInteraction < LoaderTest
           end
         end
         assert_match %r/Hotel/, e.message
-      end
-    end
-  end
-
-  test "symlinks in autoloaded files set by Zeitwerk" do
-    files = [["real/app/models/user.rb", "class User; end"]]
-    with_files(files) do
-      FileUtils.ln_s("real", "symlink")
-      loader.push_dir("symlink/app/models")
-      loader.setup
-
-      with_load_path("symlink/app/models") do
-        assert User
-        assert_not_required "user"
-
-        loader.reload
-
-        assert_required "user"
-      end
-    end
-  end
-
-  test "symlinks in autoloaded files resolved by Ruby" do
-    files = [["real/app/models/user.rb", "class User; end"]]
-    with_files(files) do
-      FileUtils.ln_s("real", "symlink")
-      loader.push_dir("symlink/app/models")
-      loader.setup
-
-      with_load_path("symlink/app/models") do
-        assert_required "user"
-        loader.reload
-        assert_required "user"
       end
     end
   end

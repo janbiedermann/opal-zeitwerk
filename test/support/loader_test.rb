@@ -30,6 +30,8 @@ class LoaderTest < Minitest::Test
   def reset_registry
     Zeitwerk::Registry.loaders.clear
     Zeitwerk::Registry.loaders_managing_gems.clear
+    Zeitwerk::Registry.autoloads.clear
+    Zeitwerk::Registry.inceptions.clear
   end
 
   def reset_explicit_namespace
@@ -72,9 +74,9 @@ class LoaderTest < Minitest::Test
     Array(dirs).each { |dir| $LOAD_PATH.delete(dir) }
   end
 
-  def with_setup(files, dirs: ".", load_path: nil, rm: true)
+  def with_setup(files, dirs: ".", namespace: Object, load_path: nil, rm: true)
     with_files(files, rm: rm) do
-      Array(dirs).each { |dir| loader.push_dir(dir) }
+      Array(dirs).each { |dir| loader.push_dir(dir, namespace: namespace) }
       loader.setup
       if load_path
         with_load_path(load_path) { yield }
@@ -82,5 +84,9 @@ class LoaderTest < Minitest::Test
         yield
       end
     end
+  end
+
+  def assert_abspath(expected, actual)
+    assert_equal(File.expand_path(expected, TMP_DIR), actual)
   end
 end

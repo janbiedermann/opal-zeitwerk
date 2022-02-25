@@ -2,13 +2,25 @@ require "test_helper"
 require "set"
 
 class TestIgnore < LoaderTest
+  def this_dir
+    @this_dir ||= __dir__
+  end
+
+  def this_file
+    @this_file ||= File.expand_path(__FILE__, this_dir)
+  end
+
+  def ascendant
+    @dir_up ||= File.expand_path("#{this_dir}/../..")
+  end
+
   test "ignored root directories are ignored" do
     files = [["x.rb", "X = true"]]
     with_files(files) do
       loader.push_dir(".")
       loader.ignore(".")
 
-      assert_empty loader.autoloads
+      assert !Object.autoload?(:X)
       assert_raises(NameError) { ::X }
     end
   end
@@ -23,7 +35,9 @@ class TestIgnore < LoaderTest
       loader.ignore("y.rb")
       loader.setup
 
-      assert_equal 1, loader.autoloads.size
+      assert Object.autoload?(:X)
+      assert !Object.autoload?(:Y)
+
       assert ::X
       assert_raises(NameError) { ::Y }
     end
@@ -41,7 +55,9 @@ class TestIgnore < LoaderTest
       loader.ignore("m")
       loader.setup
 
-      assert_equal 1, loader.autoloads.size
+      assert Object.autoload?(:X)
+      assert !Object.autoload?(:M)
+
       assert ::X
       assert_raises(NameError) { ::M }
     end
@@ -131,5 +147,40 @@ class TestIgnore < LoaderTest
       assert Post
       assert_raises(NameError) { PostTest }
     end
+  end
+
+  test "returns true if a directory is ignored as is" do
+    loader.ignore(this_dir)
+    assert loader.ignores?(this_dir)
+  end
+
+  test "returns true if a file is ignored as is" do
+    loader.ignore(this_file)
+    assert loader.ignores?(this_file)
+  end
+
+  test "returns true for a descendant of an ignored directory" do
+    loader.ignore(ascendant)
+    assert loader.ignores?(this_dir)
+  end
+
+  test "returns true for a file in a descendant of an ignored directory" do
+    loader.ignore(ascendant)
+    assert loader.ignores?(this_file)
+  end
+
+  test "returns false for the directory of an ignored file" do
+    loader.ignore(this_file)
+    assert !loader.ignores?(this_dir)
+  end
+
+  test "returns false for an ascendant directory of an ignored directory" do
+    loader.ignore(this_dir)
+    assert !loader.ignores?(ascendant)
+  end
+
+  test "returns false if nothing is ignored" do
+    assert !loader.ignores?(this_dir)
+    assert !loader.ignores?(this_file)
   end
 end

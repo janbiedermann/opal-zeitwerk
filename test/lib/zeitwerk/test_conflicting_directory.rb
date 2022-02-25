@@ -18,8 +18,9 @@ class TestConflictingDirectory < LoaderTest
   end
 
   def conflicting_directory_message(dir)
-    "loader\n\n#{loader}\n\nwants to manage directory #{dir}," \
-    " which is already managed by\n\n#{existing_loader}\n"
+    require "pp"
+    "loader\n\n#{loader.pretty_inspect}\n\nwants to manage directory #{dir}," \
+    " which is already managed by\n\n#{existing_loader.pretty_inspect}\n"
   end
 
   test "raises if an existing loader manages the same root dir" do
@@ -61,6 +62,18 @@ class TestConflictingDirectory < LoaderTest
     existing_loader.push_dir(parent)
     existing_loader.ignore("#{parent}/*")
     assert loader.push_dir(dir)
+  end
+
+  test "does not raise if the loader ignores a directory managed by an existing loader (dir)" do
+    existing_loader.push_dir(dir)
+    loader.ignore(dir)
+    assert loader.push_dir(parent)
+  end
+
+  test "does not raise if the loader ignores a directory managed by an existing loader (glob pattern)" do
+    existing_loader.push_dir(dir)
+    loader.ignore("#{parent}/*")
+    assert loader.push_dir(parent)
   end
 
   test "raises if an existing loader ignores a directory with a matching prefix" do

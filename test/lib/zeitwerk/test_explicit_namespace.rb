@@ -1,7 +1,9 @@
 require "test_helper"
 
 class TestExplicitNamespace < LoaderTest
-  test "explicit namespaces are loaded correctly" do
+  module Namespace; end
+
+  test "explicit namespaces are loaded correctly (Object)" do
     files = [
       ["app/models/hotel.rb", "class Hotel; X = 1; end"],
       ["app/models/hotel/pricing.rb", "class Hotel::Pricing; end"]
@@ -10,6 +12,18 @@ class TestExplicitNamespace < LoaderTest
       assert_kind_of Class, Hotel
       assert Hotel::X
       assert Hotel::Pricing
+    end
+  end
+
+  test "explicit namespaces are loaded correctly (Namespace)" do
+    files = [
+      ["app/models/hotel.rb", "class #{Namespace}::Hotel; X = 1; end"],
+      ["app/models/hotel/pricing.rb", "class #{Namespace}::Hotel::Pricing; end"]
+    ]
+    with_setup(files, namespace: Namespace, dirs: "app/models") do
+      assert_kind_of Class, Namespace::Hotel
+      assert Namespace::Hotel::X
+      assert Namespace::Hotel::Pricing
     end
   end
 
@@ -82,6 +96,19 @@ class TestExplicitNamespace < LoaderTest
       assert_kind_of Class, A
       assert_kind_of Class, B
       assert_equal :B, B::X
+    end
+  end
+
+  test "namespace promotion updates the registry" do
+    # We use two root directories to make sure the loader visits the implicit
+    # a/m first, and the explicit b/m.rb after it.
+    files = [
+      ["a/m/x.rb", "M::X = true"],
+      ["b/m.rb", "module M; end"]
+    ]
+    with_setup(files, dirs: ["a", "b"]) do
+      assert_nil Zeitwerk::Registry.loader_for(File.expand_path("a/m"))
+      assert_same loader, Zeitwerk::Registry.loader_for(File.expand_path("b/m.rb"))
     end
   end
 
@@ -172,6 +199,23 @@ class TestExplicitNamespace < LoaderTest
       assert tracer.enabled?
       assert_equal 1, Hotel.x
       assert tracer.enabled?
+    end
+  end
+
+  test "non-hashable explicit namespaces are supported" do
+    files = [
+      ["m.rb", <<~EOS],
+        module M
+          # This method is overridden with a different arity. Therefore, M is
+          # not hashable. See https://github.com/fxn/zeitwerk/issues/188.
+          def self.hash(_)
+          end
+        end
+      EOS
+      ["m/x.rb", "M::X = true"]
+    ]
+    with_setup(files) do
+      assert M::X
     end
   end
 end

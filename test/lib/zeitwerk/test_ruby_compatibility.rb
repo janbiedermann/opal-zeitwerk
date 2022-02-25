@@ -34,6 +34,23 @@ class TestRubyCompatibility < LoaderTest
     end
   end
 
+  # Zeitwerk sets autoloads using absolute paths, and the root dirs are joined
+  # as given. Thanks to this property, we are able to identify the files we
+  # manage in our decorated Kernel#require.
+  test "absolute paths passed to require end up in $LOADED_FEATURES as is" do
+    on_teardown { $LOADED_FEATURES.pop }
+
+    files = [["real/real_x.rb", ""]]
+    with_files(files) do
+      FileUtils.ln_s("real", "sym")
+      FileUtils.ln_s(File.expand_path("real/real_x.rb"), "sym/sym_x.rb")
+
+      sym_x = File.expand_path("sym/sym_x.rb")
+      assert require(sym_x)
+      assert $LOADED_FEATURES.last == sym_x
+    end
+  end
+
   # Zeitwerk has to be called as soon as explicit namespaces are defined, to be
   # able to configure autoloads for their children before the class or module
   # body is interpreted. If explicit namespaces are found, Zeitwerk sets a trace
@@ -75,7 +92,7 @@ class TestRubyCompatibility < LoaderTest
       loader.setup
 
       assert Admin
-      assert !$LOADED_FEATURES.include?(File.realpath("admin"))
+      assert !$LOADED_FEATURES.include?(File.expand_path("admin"))
     end
   end
 
@@ -164,26 +181,6 @@ class TestRubyCompatibility < LoaderTest
     end
   end
 
-  # Thanks to this the code that unloads can just blindly issue remove_const
-  # calls without catching exceptions.
-  test "remove_const works on constants with an autoload even if the file did not define them" do
-    on_teardown do
-      remove_const :Foo
-      remove_const :NOT_FOO
-      delete_loaded_feature "foo.rb"
-    end
-
-    files = [["foo.rb", "NOT_FOO = 1"]]
-    with_files(files) do
-      with_load_path(Dir.pwd) do
-        begin
-          Object.autoload(:Foo, "foo")
-          assert_raises(NameError) { Foo }
-        end
-      end
-    end
-  end
-
   # This edge case justifies the need for the inceptions collection in the
   # registry.
   test "an autoload on yourself is ignored" do
@@ -214,7 +211,7 @@ class TestRubyCompatibility < LoaderTest
       EOS
      ["bar.rb", <<-EOS]
        Bar = true
-       Object.autoload(:Foo, File.realpath('foo.rb'))
+       Object.autoload(:Foo, File.expand_path('foo.rb'))
        $trc_inception = !Object.autoload?(:Foo)
      EOS
     ]
@@ -254,10 +251,12 @@ class TestRubyCompatibility < LoaderTest
   end
 
   # Computing hash codes is costly and we want the tracer to be as efficient as
-  # possible. The callback doesn't short-circuit anonymous classes and modules
-  # because Class.new and Module.new do not trigger it, but if in the future
-  # they do we could benchmark if we should change event.self.name before the
-  # deletion call.
+  # possible. The TP callback doesn't short-circuit anonymous classes/modules
+  # because Class.new/Module.new do not trigger the :class event. We leverage
+  # this property to save a nil? call.
+  #
+  # However, if that changes in future versions of Ruby, this test would tell us
+  # and we could revisit the callback implementation.
   test "trace points on the :class events don't get called on Class.new and Module.new" do
     on_teardown { @tracer.disable }
 
@@ -288,8 +287,31 @@ class TestRubyCompatibility < LoaderTest
       with_load_path(".") do
         assert_equal true, require(Pathname.new("x"))
         assert_equal 1, X
-        assert_equal File.realpath("x.rb"), $LOADED_FEATURES.last
+        assert_equal File.expand_path("x.rb"), $LOADED_FEATURES.last
       end
+    end
+  end
+
+  # This allows Zeitwerk to be thread-safe on regular file autoloads. Module
+  # autovivification is custom, has its own test.
+  test "autoloads are synchronized" do
+    $ensure_M_is_autoloaded_by_the_thread = Queue.new
+
+    files = [["m.rb", <<-EOS]]
+      module M
+        $ensure_M_is_autoloaded_by_the_thread << true
+        sleep 0.5
+
+        def self.works?
+          true
+        end
+      end
+    EOS
+    with_setup(files) do
+      t = Thread.new { M }
+      $ensure_M_is_autoloaded_by_the_thread.pop()
+      assert M.works?
+      t.join
     end
   end
 end

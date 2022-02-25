@@ -1,7 +1,9 @@
 require "test_helper"
 
 class TestUnload < LoaderTest
-  test "unload removes all autoloaded constants" do
+  module Namespace; end
+
+  test "unload removes all autoloaded constants (Object)" do
     files = [
       ["user.rb", "class User; end"],
       ["admin/root.rb", "class Admin::Root; end"]
@@ -15,6 +17,24 @@ class TestUnload < LoaderTest
 
       assert !Object.const_defined?(:User)
       assert !Object.const_defined?(:Admin)
+      assert !admin.const_defined?(:Root)
+    end
+  end
+
+  test "unload removes all autoloaded constants (Namespace)" do
+    files = [
+      ["user.rb", "class #{Namespace}::User; end"],
+      ["admin/root.rb", "class #{Namespace}::Admin::Root; end"]
+    ]
+    with_setup(files, namespace: Namespace) do
+      assert Namespace::User
+      assert Namespace::Admin::Root
+      admin = Namespace::Admin
+
+      loader.unload
+
+      assert !Namespace.const_defined?(:User)
+      assert !Namespace.const_defined?(:Admin)
       assert !admin.const_defined?(:Root)
     end
   end
@@ -117,6 +137,28 @@ class TestUnload < LoaderTest
       la.unload
       assert_nil Zeitwerk::ExplicitNamespace.cpaths["M"]
       assert Zeitwerk::ExplicitNamespace.cpaths["X"] == lb
+    end
+  end
+
+  test "unload clears state even if the autoload failed and the exception was rescued" do
+    on_teardown do
+      remove_const :X_IS_NOT_DEFINED
+    end
+
+    files = [["x.rb", "X_IS_NOT_DEFINED = true"]]
+    with_setup(files) do
+      begin
+        X
+      rescue Zeitwerk::NameError
+        pass # precondition holds
+      else
+        flunk # precondition failed
+      end
+
+      loader.unload
+
+      assert !Object.constants.include?(:X)
+      assert !$LOADED_FEATURES.include?(File.expand_path("x.rb"))
     end
   end
 end

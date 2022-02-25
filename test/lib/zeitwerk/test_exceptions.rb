@@ -1,12 +1,22 @@
 require "test_helper"
 
 class TestExceptions < LoaderTest
+  # We cannot test error.message only because after
+  #
+  #   https://github.com/ruby/ruby/commit/e94604966572bb43fc887856d54aa54b8e9f7719
+  #
+  # error.message includes the line of code that raised.
+  def assert_error_message(message, error)
+    assert_equal message, error.message.lines.first.chomp
+  end
+
   test "raises NameError if the expected constant is not defined" do
     files = [["typo.rb", "TyPo = 1"]]
     with_setup(files) do
-      typo_rb = File.realpath("typo.rb")
-      e = assert_raises(Zeitwerk::NameError) { Typo }
-      assert_equal "expected file #{typo_rb} to define constant Typo, but didn't", e.message
+      typo_rb = File.expand_path("typo.rb")
+      error = assert_raises(Zeitwerk::NameError) { Typo }
+      assert_error_message "expected file #{typo_rb} to define constant Typo, but didn't", error
+      assert_equal :Typo, error.name
     end
   end
 
@@ -18,9 +28,10 @@ class TestExceptions < LoaderTest
 
     files = [["x.rb", "Y = 1"]]
     with_setup(files) do
-      x_rb = File.realpath("x.rb")
-      e = assert_raises(Zeitwerk::NameError) { loader.eager_load }
-      assert_equal "expected file #{x_rb} to define constant X, but didn't", e.message
+      x_rb = File.expand_path("x.rb")
+      error = assert_raises(Zeitwerk::NameError) { loader.eager_load }
+      assert_error_message "expected file #{x_rb} to define constant X, but didn't", error
+      assert_equal :X, error.name
     end
   end
 
@@ -32,9 +43,10 @@ class TestExceptions < LoaderTest
 
     files = [["cli/x.rb", "module CLI; X = 1; end"]]
     with_setup(files) do
-      cli_x_rb = File.realpath("cli/x.rb")
-      e = assert_raises(Zeitwerk::NameError) { loader.eager_load }
-      assert_equal "expected file #{cli_x_rb} to define constant Cli::X, but didn't", e.message
+      cli_x_rb = File.expand_path("cli/x.rb")
+      error = assert_raises(Zeitwerk::NameError) { loader.eager_load }
+      assert_error_message "expected file #{cli_x_rb} to define constant Cli::X, but didn't", error
+      assert_equal :X, error.name
     end
   end
 
@@ -50,6 +62,7 @@ class TestExceptions < LoaderTest
     error = assert_raises Zeitwerk::NameError do
       with_setup(files) {}
     end
+    assert_equal :"Foo-bar", error.name
     assert_includes error.message, "wrong constant name Foo-bar"
     assert_includes error.message, "Tell Zeitwerk to ignore this particular file."
   end
@@ -59,6 +72,7 @@ class TestExceptions < LoaderTest
     error = assert_raises Zeitwerk::NameError do
       with_setup(files) {}
     end
+    assert_equal :"Foo-bar", error.name
     assert_includes error.message, "wrong constant name Foo-bar"
     assert_includes error.message, "Tell Zeitwerk to ignore this particular directory."
   end

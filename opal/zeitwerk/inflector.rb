@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module Zeitwerk
   class Inflector
     # Very basic snake case -> camel case conversion.
@@ -13,7 +11,7 @@ module Zeitwerk
     #
     # @sig (String, String) -> String
     def camelize(basename, _abspath)
-      overrides[basename] || basename.split('_').each(&:capitalize!).join
+      overrides[basename] || basename.split('_').map!(&:capitalize).join
     end
 
     # Configures hard-coded inflections:

@@ -5,16 +5,23 @@ module Zeitwerk
       # them from being garbage collected.
       #
       # @private
-      # @return [<Zeitwerk::Loader>]
+      # @sig Array[Zeitwerk::Loader]
       attr_reader :loaders
 
-      # Maps real paths to the loaders responsible for them.
+      # Registers loaders created with `for_gem` to make the method idempotent
+      # in case of reload.
+      #
+      # @private
+      # @sig Hash[String, Zeitwerk::Loader]
+      attr_reader :loaders_managing_gems
+
+      # Maps absolute paths to the loaders responsible for them.
       #
       # This information is used by our decorated `Kernel#require` to be able to
       # invoke callbacks and autovivify modules.
       #
       # @private
-      # @return [{String => Zeitwerk::Loader}]
+      # @sig Hash[String, Zeitwerk::Loader]
       attr_reader :autoloads
 
       # This hash table addresses an edge case in which an autoload is ignored.
@@ -53,45 +60,61 @@ module Zeitwerk
       #   end
       #
       # @private
-      # @return [{String => (String, Zeitwerk::Loader)}]
+      # @sig Hash[String, [String, Zeitwerk::Loader]]
       attr_reader :inceptions
 
       # Registers a loader.
       #
       # @private
-      # @param loader [Zeitwerk::Loader]
-      # @return [void]
+      # @sig (Zeitwerk::Loader) -> void
       def register_loader(loader)
         loaders << loader
       end
 
       # @private
-      # @param loader [Zeitwerk::Loader]
-      # @param realpath [String]
-      # @return [void]
-      def register_autoload(loader, realpath)
-        autoloads[realpath] = loader
+      # @sig (Zeitwerk::Loader) -> void
+      def unregister_loader(loader)
+        loaders.delete(loader)
+        loaders_managing_gems.delete_if { |_, l| l == loader }
+        autoloads.delete_if { |_, l| l == loader }
+        inceptions.delete_if { |_, (_, l)| l == loader }
+      end
+
+      # This method returns always a loader, the same instance for the same root
+      # file. That is how Zeitwerk::Loader.for_gem is idempotent.
+      #
+      # @private
+      # @sig (String) -> Zeitwerk::Loader
+      def loader_for_gem(root_file)
+        loaders_managing_gems[root_file] ||= begin
+          Loader.new.tap do |loader|
+            loader.tag = File.basename(root_file, ".rb")
+            loader.inflector = GemInflector.new(root_file)
+            loader.push_dir(File.dirname(root_file))
+          end
+        end
       end
 
       # @private
-      # @param realpath [String]
-      # @return [void]
-      def unregister_autoload(realpath)
-        autoloads.delete(realpath)
+      # @sig (Zeitwerk::Loader, String) -> String
+      def register_autoload(loader, abspath)
+        autoloads[abspath] = loader
       end
 
       # @private
-      # @param cpath [String]
-      # @param realpath [String]
-      # @param loader [Zeitwerk::Loader]
-      # @return [void]
-      def register_inception(cpath, realpath, loader)
-        inceptions[cpath] = [realpath, loader]
+      # @sig (String) -> void
+      def unregister_autoload(abspath)
+        autoloads.delete(abspath)
       end
 
       # @private
-      # @param cpath [String]
-      # @return [String, nil]
+      # @sig (String, String, Zeitwerk::Loader) -> void
+      def register_inception(cpath, abspath, loader)
+        inceptions[cpath] = [abspath, loader]
+      end
+
+      # @private
+      # @sig (String) -> String?
       def inception?(cpath)
         if pair = inceptions[cpath]
           pair.first
@@ -99,15 +122,13 @@ module Zeitwerk
       end
 
       # @private
-      # @param path [String]
-      # @return [Zeitwerk::Loader, nil]
+      # @sig (String) -> Zeitwerk::Loader?
       def loader_for(path)
         autoloads[path]
       end
 
       # @private
-      # @param loader [Zeitwerk::Loader]
-      # @return [void]
+      # @sig (Zeitwerk::Loader) -> void
       def on_unload(loader)
         autoloads.delete_if { |_path, object| object == loader }
         inceptions.delete_if { |_cpath, (_path, object)| object == loader }
@@ -115,6 +136,7 @@ module Zeitwerk
     end
 
     @loaders               = []
+    @loaders_managing_gems = {}
     @autoloads             = {}
     @inceptions            = {}
   end

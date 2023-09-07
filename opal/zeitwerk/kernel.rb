@@ -1,3 +1,5 @@
+# backtick_javascript: true
+
 module Kernel
   module_function
 

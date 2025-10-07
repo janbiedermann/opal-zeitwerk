@@ -109,6 +109,7 @@ module Zeitwerk::Loader::Config
     end
 
     abspath = File.expand_path(path)
+    abspath = abspath[1..] if abspath.start_with?('/')
     if dir?(abspath)
       raise_if_conflicting_directory(abspath)
       root_dirs[abspath] = namespace

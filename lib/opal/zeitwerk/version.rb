@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 module Opal
   module Zeitwerk
-    VERSION = "0.4.5"
+    VERSION = "0.4.6"
   end
 end
